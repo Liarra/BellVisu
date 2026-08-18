@@ -2,6 +2,9 @@
   "$schema": "./visualisation.schema.json",
   "backgroundColor": "#100000",
   "masterVolume": 0.82,
+  "globalVariation": {
+    "startTimeJitterMs": 8
+  },
   "events": [
     {
       "id": "murder-stranger",
@@ -15,23 +18,34 @@
         "fadeSeconds": 3.6
       },
       "sound": {
-        "bellName": "Alarm temple gong",
-        "volume": 1.12,
-        "reverbSeconds": 4.6,
-        "reverbWet": 0.22,
-        "pan": -0.34,
-        "variation": {
-          "pitchCents": 12,
-          "amplitude": 0.12,
-          "decay": 0.08,
-          "resonatorBanks": 4
-        },
+        "voiceLabel": "Tragic tower bell",
+        "primeHz": 98.0,
+        "notePoolHz": [87.31, 98.0, 110.0],
         "partials": [
-          { "pitchHz": 156, "amplitude": 0.074, "decaySeconds": 3.1 },
-          { "pitchHz": 491, "amplitude": 0.045, "decaySeconds": 2.65 },
-          { "pitchHz": 963, "amplitude": 0.029, "decaySeconds": 2.15 },
-          { "pitchHz": 1771, "amplitude": 0.013, "decaySeconds": 1.55 }
-        ]
+          { "name": "hum", "ratio": 0.5, "gain": 0.9, "decaySec": 9.8, "detuneCents": -1 },
+          { "name": "prime", "ratio": 1.0, "gain": 0.68, "decaySec": 8.0, "detuneCents": 0 },
+          { "name": "tierce", "ratio": 1.19, "gain": 0.52, "decaySec": 6.4, "detuneCents": 2 },
+          { "name": "quint", "ratio": 1.5, "gain": 0.4, "decaySec": 5.4, "detuneCents": -1 },
+          { "name": "nominal", "ratio": 2.0, "gain": 0.7, "decaySec": 5.9, "detuneCents": 1 },
+          { "name": "upper_1", "ratio": 2.74, "gain": 0.26, "decaySec": 3.6, "detuneCents": 4 },
+          { "name": "upper_2", "ratio": 3.0, "gain": 0.16, "decaySec": 2.8, "detuneCents": -3 },
+          { "name": "upper_3", "ratio": 4.07, "gain": 0.08, "decaySec": 2.2, "detuneCents": 5 }
+        ],
+        "attackMs": 12,
+        "strikeNoise": 0.18,
+        "strikeNoiseDecayMs": 55,
+        "lowpassHz": 4200,
+        "highpassHz": 28,
+        "reverbSend": 0.42,
+        "reverbTimeSec": 6.5,
+        "predelayMs": 24,
+        "stereoWidth": 0.55,
+        "pan": -0.3,
+        "pitchJitterCents": 8,
+        "gainJitter": 0.1,
+        "decayJitter": 0.1,
+        "masterGain": 0.95,
+        "maxVoices": 3
       }
     },
     {
@@ -46,23 +60,33 @@
         "fadeSeconds": 3.6
       },
       "sound": {
-        "bellName": "Funeral bourdon",
-        "volume": 2.15,
-        "reverbSeconds": 8.4,
-        "reverbWet": 0.34,
-        "pan": 0.34,
-        "variation": {
-          "pitchCents": 8,
-          "amplitude": 0.1,
-          "decay": 0.06,
-          "resonatorBanks": 4
-        },
+        "voiceLabel": "Black iron bourdon",
+        "primeHz": 82.41,
+        "notePoolHz": [73.42, 82.41, 87.31],
         "partials": [
-          { "pitchHz": 82, "amplitude": 0.092, "decaySeconds": 6.8 },
-          { "pitchHz": 137, "amplitude": 0.056, "decaySeconds": 6.1 },
-          { "pitchHz": 219, "amplitude": 0.032, "decaySeconds": 5.3 },
-          { "pitchHz": 347, "amplitude": 0.015, "decaySeconds": 4.4 }
-        ]
+          { "name": "hum", "ratio": 0.5, "gain": 1.0, "decaySec": 11.5, "detuneCents": -2 },
+          { "name": "prime", "ratio": 1.0, "gain": 0.58, "decaySec": 9.5, "detuneCents": 0 },
+          { "name": "tierce", "ratio": 1.19, "gain": 0.34, "decaySec": 8.2, "detuneCents": 2 },
+          { "name": "quint", "ratio": 1.5, "gain": 0.22, "decaySec": 7.1, "detuneCents": -1 },
+          { "name": "nominal", "ratio": 2.0, "gain": 0.16, "decaySec": 4.8, "detuneCents": 1 },
+          { "name": "rough_1", "ratio": 2.37, "gain": 0.2, "decaySec": 5.8, "detuneCents": -12 },
+          { "name": "rough_2", "ratio": 2.93, "gain": 0.1, "decaySec": 4.1, "detuneCents": 9 }
+        ],
+        "attackMs": 22,
+        "strikeNoise": 0.08,
+        "strikeNoiseDecayMs": 75,
+        "lowpassHz": 1900,
+        "highpassHz": 22,
+        "reverbSend": 0.14,
+        "reverbTimeSec": 3.2,
+        "predelayMs": 8,
+        "stereoWidth": 0.2,
+        "pan": 0.3,
+        "pitchJitterCents": 4,
+        "gainJitter": 0.08,
+        "decayJitter": 0.08,
+        "masterGain": 1.35,
+        "maxVoices": 3
       }
     },
     {
@@ -77,21 +101,32 @@
         "fadeSeconds": 3.6
       },
       "sound": {
-        "bellName": "Muted handbell",
-        "volume": 1.0,
-        "reverbSeconds": 3.4,
-        "reverbWet": 0.28,
-        "pan": -0.1,
-        "variation": {
-          "pitchCents": 34,
-          "amplitude": 0.28,
-          "decay": 0.16,
-          "resonatorBanks": 7
-        },
+        "voiceLabel": "Mourning chapel bell",
+        "primeHz": 196.0,
+        "notePoolHz": [174.61, 196.0, 220.0],
         "partials": [
-          { "pitchHz": 390, "amplitude": 0.00155, "decaySeconds": 3.4 },
-          { "pitchHz": 618, "amplitude": 0.00056, "decaySeconds": 2.9 }
-        ]
+          { "name": "hum", "ratio": 0.5, "gain": 0.5, "decaySec": 3.6, "detuneCents": -1 },
+          { "name": "prime", "ratio": 1.0, "gain": 0.78, "decaySec": 3.0, "detuneCents": 0 },
+          { "name": "tierce", "ratio": 1.19, "gain": 0.4, "decaySec": 2.5, "detuneCents": 1 },
+          { "name": "quint", "ratio": 1.5, "gain": 0.32, "decaySec": 2.1, "detuneCents": -1 },
+          { "name": "nominal", "ratio": 2.0, "gain": 0.34, "decaySec": 1.9, "detuneCents": 1 },
+          { "name": "upper_1", "ratio": 3.0, "gain": 0.1, "decaySec": 1.1, "detuneCents": 2 }
+        ],
+        "attackMs": 18,
+        "strikeNoise": 0.05,
+        "strikeNoiseDecayMs": 40,
+        "lowpassHz": 3200,
+        "highpassHz": 80,
+        "reverbSend": 0.22,
+        "reverbTimeSec": 2.8,
+        "predelayMs": 14,
+        "stereoWidth": 0.35,
+        "pan": -0.1,
+        "pitchJitterCents": 5,
+        "gainJitter": 0.08,
+        "decayJitter": 0.08,
+        "masterGain": 0.32,
+        "maxVoices": 6
       }
     },
     {
@@ -106,22 +141,32 @@
         "fadeSeconds": 3.6
       },
       "sound": {
-        "bellName": "Carillon bell",
-        "volume": 1.0,
-        "reverbSeconds": 3.4,
-        "reverbWet": 0.28,
-        "pan": 0.12,
-        "variation": {
-          "pitchCents": 30,
-          "amplitude": 0.25,
-          "decay": 0.14,
-          "resonatorBanks": 7
-        },
+        "voiceLabel": "Pale treble bell",
+        "primeHz": 293.66,
+        "notePoolHz": [261.63, 293.66, 311.13],
         "partials": [
-          { "pitchHz": 755, "amplitude": 0.0031, "decaySeconds": 3.4 },
-          { "pitchHz": 1518, "amplitude": 0.00175, "decaySeconds": 3.0 },
-          { "pitchHz": 2460, "amplitude": 0.00068, "decaySeconds": 2.5 }
-        ]
+          { "name": "hum", "ratio": 0.5, "gain": 0.32, "decaySec": 2.8, "detuneCents": -1 },
+          { "name": "prime", "ratio": 1.0, "gain": 0.76, "decaySec": 2.5, "detuneCents": 0 },
+          { "name": "tierce", "ratio": 1.19, "gain": 0.32, "decaySec": 2.1, "detuneCents": 1 },
+          { "name": "quint", "ratio": 1.5, "gain": 0.24, "decaySec": 1.8, "detuneCents": -1 },
+          { "name": "nominal", "ratio": 2.0, "gain": 0.46, "decaySec": 1.7, "detuneCents": 1 },
+          { "name": "upper_1", "ratio": 3.0, "gain": 0.14, "decaySec": 0.95, "detuneCents": 2 }
+        ],
+        "attackMs": 12,
+        "strikeNoise": 0.04,
+        "strikeNoiseDecayMs": 28,
+        "lowpassHz": 4500,
+        "highpassHz": 120,
+        "reverbSend": 0.25,
+        "reverbTimeSec": 2.4,
+        "predelayMs": 12,
+        "stereoWidth": 0.38,
+        "pan": 0.1,
+        "pitchJitterCents": 5,
+        "gainJitter": 0.08,
+        "decayJitter": 0.08,
+        "masterGain": 0.42,
+        "maxVoices": 5
       }
     },
     {
@@ -136,22 +181,31 @@
         "fadeSeconds": 3.6
       },
       "sound": {
-        "bellName": "Sanctus bell",
-        "volume": 1.1,
-        "reverbSeconds": 1.5,
-        "reverbWet": 0.28,
-        "pan": 0,
-        "variation": {
-          "pitchCents": 22,
-          "amplitude": 0.18,
-          "decay": 0.12,
-          "resonatorBanks": 6
-        },
+        "voiceLabel": "Thin steel triangle-bell",
+        "primeHz": 659.25,
+        "notePoolHz": [587.33, 659.25, 783.99],
         "partials": [
-          { "pitchHz": 1760, "amplitude": 0.013, "decaySeconds": 1.65 },
-          { "pitchHz": 3523, "amplitude": 0.0065, "decaySeconds": 1.3 },
-          { "pitchHz": 5820, "amplitude": 0.0028, "decaySeconds": 0.9 }
-        ]
+          { "name": "prime", "ratio": 1.0, "gain": 0.68, "decaySec": 1.2, "detuneCents": 0 },
+          { "name": "mode_2", "ratio": 2.14, "gain": 0.3, "decaySec": 0.95, "detuneCents": 3 },
+          { "name": "mode_3", "ratio": 2.98, "gain": 0.4, "decaySec": 0.7, "detuneCents": -2 },
+          { "name": "mode_4", "ratio": 4.1, "gain": 0.18, "decaySec": 0.48, "detuneCents": 5 },
+          { "name": "mode_5", "ratio": 5.43, "gain": 0.1, "decaySec": 0.34, "detuneCents": -4 }
+        ],
+        "attackMs": 4,
+        "strikeNoise": 0.03,
+        "strikeNoiseDecayMs": 18,
+        "lowpassHz": 8000,
+        "highpassHz": 300,
+        "reverbSend": 0.08,
+        "reverbTimeSec": 1.2,
+        "predelayMs": 6,
+        "stereoWidth": 0.25,
+        "pan": 0,
+        "pitchJitterCents": 6,
+        "gainJitter": 0.1,
+        "decayJitter": 0.1,
+        "masterGain": 0.55,
+        "maxVoices": 4
       }
     }
   ]

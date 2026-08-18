@@ -59,6 +59,7 @@ type BellVoice = {
 const FRAME_INTERVAL = 1_000 / 30;
 const SCHEDULE_AHEAD = 120;
 const TEXTURE_SIZE = 320;
+const BELL_OUTPUT_SCALE = 0.055;
 const SHAPE_ORDER: RippleShape[] = ["normal", "partial", "wavy"];
 
 function gaussian(value: number, center: number, width: number) {
@@ -245,41 +246,75 @@ function makeFallbackBellOutput(
 ): BellVoice {
   const processor = context.createScriptProcessor(2_048, 0, 2);
   const queue: number[] = [];
-  const leftGain = Math.sqrt((1 - stream.sound.pan) * 0.5);
-  const rightGain = Math.sqrt((1 + stream.sound.pan) * 0.5);
-  const variation = stream.sound.variation;
-  const banks = Array.from({ length: variation.resonatorBanks }, (_, bankIndex) => {
-    const position =
-      variation.resonatorBanks === 1
-        ? 0
-        : (bankIndex / (variation.resonatorBanks - 1)) * 2 - 1;
-    const pitchMultiplier = 2 ** ((position * variation.pitchCents) / 1_200);
-    const decayMultiplier = 1 + Math.sin((bankIndex + 1) * 2.39996) * variation.decay;
-    return stream.sound.partials.map((partial) => {
-      const angle =
-        (Math.PI * 2 * partial.pitchHz * pitchMultiplier) / context.sampleRate;
-      return {
-        x: 0,
-        y: 0,
-        cosine: Math.cos(angle),
-        sine: Math.sin(angle),
-        damping: Math.exp(
-          Math.log(0.001) /
-            (partial.decaySeconds * decayMultiplier * context.sampleRate),
-        ),
-        level: partial.amplitude,
-      };
-    });
-  });
+  const attackSamples = Math.max(
+    1,
+    Math.round((stream.sound.attackMs / 1_000) * context.sampleRate),
+  );
+  const noiseDamping = Math.exp(
+    Math.log(0.001) /
+      ((stream.sound.strikeNoiseDecayMs / 1_000) * context.sampleRate),
+  );
+  const voices = Array.from({ length: stream.sound.maxVoices }, () => ({
+    leftGain: Math.sqrt((1 - stream.sound.pan) * 0.5),
+    rightGain: Math.sqrt((1 + stream.sound.pan) * 0.5),
+    noiseEnvelope: 0,
+    attackRemaining: 0,
+    partials: stream.sound.partials.map(() => ({
+      x: 0,
+      y: 0,
+      cosine: 1,
+      sine: 0,
+      damping: 0,
+    })),
+  }));
+  let voiceCursor = 0;
 
   const strike = () => {
-    const bank = banks[Math.floor(Math.random() * banks.length)];
-    const strikeLevel =
-      1 + (Math.random() * 2 - 1) * stream.sound.variation.amplitude;
-    for (const partial of bank) {
+    const voice = voices[voiceCursor % voices.length];
+    voiceCursor += 1;
+    const note =
+      stream.sound.notePoolHz[
+        Math.floor(Math.random() * stream.sound.notePoolHz.length)
+      ];
+    const pitchJitter =
+      (Math.random() * 2 - 1) * stream.sound.pitchJitterCents;
+    const gainMultiplier =
+      1 + (Math.random() * 2 - 1) * stream.sound.gainJitter;
+    const decayMultiplier =
+      1 + (Math.random() * 2 - 1) * stream.sound.decayJitter;
+    const pan = Math.max(
+      -1,
+      Math.min(
+        1,
+        stream.sound.pan +
+          (Math.random() * 2 - 1) * stream.sound.stereoWidth * 0.5,
+      ),
+    );
+    voice.leftGain = Math.sqrt((1 - pan) * 0.5);
+    voice.rightGain = Math.sqrt((1 + pan) * 0.5);
+    voice.noiseEnvelope =
+      stream.sound.strikeNoise * gainMultiplier * BELL_OUTPUT_SCALE;
+    voice.attackRemaining = attackSamples;
+
+    for (let index = 0; index < voice.partials.length; index += 1) {
+      const partial = voice.partials[index];
+      const definition = stream.sound.partials[index];
+      const pitchMultiplier =
+        2 ** ((definition.detuneCents + pitchJitter) / 1_200);
+      const pitchHz = note * definition.ratio * pitchMultiplier;
+      const angle = (Math.PI * 2 * pitchHz) / context.sampleRate;
+      const level = definition.gain * gainMultiplier * BELL_OUTPUT_SCALE;
       const phase = Math.random() * Math.PI * 2;
-      partial.x += Math.cos(phase) * partial.level * strikeLevel;
-      partial.y += Math.sin(phase) * partial.level * strikeLevel;
+      const targetX = Math.cos(phase) * level;
+      const targetY = Math.sin(phase) * level;
+      partial.x = targetX;
+      partial.y = targetY;
+      partial.cosine = Math.cos(angle);
+      partial.sine = Math.sin(angle);
+      partial.damping = Math.exp(
+        Math.log(0.001) /
+          (definition.decaySec * decayMultiplier * context.sampleRate),
+      );
     }
   };
 
@@ -295,9 +330,16 @@ function makeFallbackBellOutput(
         consumed += 1;
       }
 
-      let output = 0;
-      for (const bank of banks) {
-        for (const partial of bank) {
+      let leftOutput = 0;
+      let rightOutput = 0;
+      for (const voice of voices) {
+        const attackGain =
+          voice.attackRemaining > 0
+            ? 1 - voice.attackRemaining / attackSamples
+            : 1;
+        if (voice.attackRemaining > 0) voice.attackRemaining -= 1;
+        let resonantOutput = 0;
+        for (const partial of voice.partials) {
           const nextX =
             (partial.x * partial.cosine - partial.y * partial.sine) *
             partial.damping;
@@ -306,11 +348,17 @@ function makeFallbackBellOutput(
             partial.damping;
           partial.x = nextX;
           partial.y = nextY;
-          output += nextX;
+          resonantOutput += nextX;
         }
+        const voiceOutput =
+          resonantOutput * attackGain +
+          (Math.random() * 2 - 1) * voice.noiseEnvelope;
+        voice.noiseEnvelope *= noiseDamping;
+        leftOutput += voiceOutput * voice.leftGain;
+        rightOutput += voiceOutput * voice.rightGain;
       }
-      left[sample] = output * leftGain;
-      right[sample] = output * rightGain;
+      left[sample] = leftOutput;
+      right[sample] = rightOutput;
     }
 
     if (consumed > 0) queue.splice(0, consumed);
@@ -326,8 +374,10 @@ function makeFallbackBellOutput(
     },
     cancel() {
       queue.length = 0;
-      for (const bank of banks) {
-        for (const partial of bank) {
+      for (const voice of voices) {
+        voice.noiseEnvelope = 0;
+        voice.attackRemaining = 0;
+        for (const partial of voice.partials) {
           partial.x = 0;
           partial.y = 0;
         }
@@ -348,9 +398,7 @@ function makeWorkletBellOutput(
       signatures: [
         {
           id: stream.id,
-          pan: stream.sound.pan,
-          variation: stream.sound.variation,
-          partials: stream.sound.partials,
+          sound: stream.sound,
         },
       ],
     },
@@ -408,17 +456,30 @@ async function buildAudioEngine(context: AudioContext): Promise<AudioEngine> {
     }
 
     const voiceLevel = context.createGain();
+    const highpass = context.createBiquadFilter();
+    const lowpass = context.createBiquadFilter();
+    const reverbPredelay = context.createDelay(0.25);
     const reverb = context.createConvolver();
     const reverbLevel = context.createGain();
     const eventOutput = context.createGain();
-    voiceLevel.gain.value = stream.sound.volume;
-    reverb.buffer = makeReverbImpulse(context, stream.sound.reverbSeconds);
-    reverbLevel.gain.value = stream.sound.reverbWet;
+    voiceLevel.gain.value = stream.sound.masterGain;
+    highpass.type = "highpass";
+    highpass.frequency.value = stream.sound.highpassHz;
+    highpass.Q.value = 0.6;
+    lowpass.type = "lowpass";
+    lowpass.frequency.value = stream.sound.lowpassHz;
+    lowpass.Q.value = 0.55;
+    reverbPredelay.delayTime.value = stream.sound.predelayMs / 1_000;
+    reverb.buffer = makeReverbImpulse(context, stream.sound.reverbTimeSec);
+    reverbLevel.gain.value = stream.sound.reverbSend;
     eventOutput.gain.value = 1;
 
-    voice.node.connect(voiceLevel);
+    voice.node.connect(highpass);
+    highpass.connect(lowpass);
+    lowpass.connect(voiceLevel);
     voiceLevel.connect(eventOutput);
-    voiceLevel.connect(reverb);
+    voiceLevel.connect(reverbPredelay);
+    reverbPredelay.connect(reverb);
     reverb.connect(reverbLevel);
     reverbLevel.connect(eventOutput);
     eventOutput.connect(master);
@@ -430,9 +491,17 @@ async function buildAudioEngine(context: AudioContext): Promise<AudioEngine> {
     master,
     schedule(events) {
       const batches = new Map<string, ScheduledBell[]>();
+      const timingJitter =
+        visualisationConfig.globalVariation.startTimeJitterMs / 1_000;
       for (const event of events) {
         const batch = batches.get(event.eventId) ?? [];
-        batch.push(event);
+        batch.push({
+          ...event,
+          delay: Math.max(
+            0,
+            event.delay + (Math.random() * 2 - 1) * timingJitter,
+          ),
+        });
         batches.set(event.eventId, batch);
       }
       for (const [eventId, batch] of batches) {
@@ -1057,7 +1126,7 @@ export default function Home() {
                 />
                 <div className="event-legend__identity">
                   <strong>{stream.name}</strong>
-                  <span>{stream.sound.bellName}</span>
+                <span>{stream.sound.voiceLabel}</span>
                 </div>
                 <div className="event-legend__rate">
                   <strong>{formatEventRate(stream.frequencyPerMinute)}</strong>

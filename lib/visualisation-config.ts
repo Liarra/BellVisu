@@ -4,9 +4,11 @@ export type RippleShape = "normal" | "partial" | "wavy";
 export type Rgb = [red: number, green: number, blue: number];
 
 export type BellPartial = {
-  pitchHz: number;
-  amplitude: number;
-  decaySeconds: number;
+  name: string;
+  ratio: number;
+  gain: number;
+  decaySec: number;
+  detuneCents: number;
 };
 
 export type VisualisationEvent = {
@@ -21,17 +23,24 @@ export type VisualisationEvent = {
     fadeSeconds: number;
   };
   sound: {
-    bellName: string;
-    volume: number;
-    reverbSeconds: number;
-    reverbWet: number;
+    voiceLabel: string;
+    primeHz: number;
+    notePoolHz: number[];
+    attackMs: number;
+    strikeNoise: number;
+    strikeNoiseDecayMs: number;
+    lowpassHz: number;
+    highpassHz: number;
+    reverbSend: number;
+    reverbTimeSec: number;
+    predelayMs: number;
+    stereoWidth: number;
     pan: number;
-    variation: {
-      pitchCents: number;
-      amplitude: number;
-      decay: number;
-      resonatorBanks: number;
-    };
+    pitchJitterCents: number;
+    gainJitter: number;
+    decayJitter: number;
+    masterGain: number;
+    maxVoices: number;
     partials: BellPartial[];
   };
 };
@@ -39,6 +48,9 @@ export type VisualisationEvent = {
 export type VisualisationConfig = {
   backgroundColor: string;
   masterVolume: number;
+  globalVariation: {
+    startTimeJitterMs: number;
+  };
   events: VisualisationEvent[];
 };
 
@@ -97,9 +109,16 @@ function colourAt(value: unknown, path: string) {
 function validatePartial(value: unknown, path: string): BellPartial {
   const partial = objectAt(value, path);
   return {
-    pitchHz: numberAt(partial.pitchHz, `${path}.pitchHz`, 20, 18_000),
-    amplitude: numberAt(partial.amplitude, `${path}.amplitude`, 0.000001, 1),
-    decaySeconds: numberAt(partial.decaySeconds, `${path}.decaySeconds`, 0.05, 30),
+    name: stringAt(partial.name, `${path}.name`),
+    ratio: numberAt(partial.ratio, `${path}.ratio`, 0.05, 16),
+    gain: numberAt(partial.gain, `${path}.gain`, 0.000001, 2),
+    decaySec: numberAt(partial.decaySec, `${path}.decaySec`, 0.05, 30),
+    detuneCents: numberAt(
+      partial.detuneCents,
+      `${path}.detuneCents`,
+      -100,
+      100,
+    ),
   };
 }
 
@@ -108,13 +127,15 @@ function validateEvent(value: unknown, index: number): VisualisationEvent {
   const event = objectAt(value, path);
   const ripple = objectAt(event.ripple, `${path}.ripple`);
   const sound = objectAt(event.sound, `${path}.sound`);
-  const variation = objectAt(sound.variation, `${path}.sound.variation`);
   const shape = stringAt(ripple.shape, `${path}.ripple.shape`) as RippleShape;
   if (!RIPPLE_SHAPES.has(shape)) {
     throw new Error(`${path}.ripple.shape must be normal, partial, or wavy`);
   }
   if (!Array.isArray(sound.partials) || sound.partials.length === 0) {
     throw new Error(`${path}.sound.partials must contain at least one partial`);
+  }
+  if (!Array.isArray(sound.notePoolHz) || sound.notePoolHz.length === 0) {
+    throw new Error(`${path}.sound.notePoolHz must contain at least one note`);
   }
 
   const id = stringAt(event.id, `${path}.id`);
@@ -139,42 +160,51 @@ function validateEvent(value: unknown, index: number): VisualisationEvent {
       fadeSeconds: numberAt(ripple.fadeSeconds, `${path}.ripple.fadeSeconds`, 0.1, 30),
     },
     sound: {
-      bellName: stringAt(sound.bellName, `${path}.sound.bellName`),
-      volume: numberAt(sound.volume, `${path}.sound.volume`, 0, 5),
-      reverbSeconds: numberAt(
-        sound.reverbSeconds,
-        `${path}.sound.reverbSeconds`,
+      voiceLabel: stringAt(sound.voiceLabel, `${path}.sound.voiceLabel`),
+      primeHz: numberAt(sound.primeHz, `${path}.sound.primeHz`, 20, 18_000),
+      notePoolHz: sound.notePoolHz.map((note, noteIndex) =>
+        numberAt(note, `${path}.sound.notePoolHz[${noteIndex}]`, 20, 18_000),
+      ),
+      attackMs: numberAt(sound.attackMs, `${path}.sound.attackMs`, 0, 500),
+      strikeNoise: numberAt(
+        sound.strikeNoise,
+        `${path}.sound.strikeNoise`,
+        0,
+        1,
+      ),
+      strikeNoiseDecayMs: numberAt(
+        sound.strikeNoiseDecayMs,
+        `${path}.sound.strikeNoiseDecayMs`,
+        1,
+        1_000,
+      ),
+      lowpassHz: numberAt(sound.lowpassHz, `${path}.sound.lowpassHz`, 100, 20_000),
+      highpassHz: numberAt(sound.highpassHz, `${path}.sound.highpassHz`, 0, 5_000),
+      reverbSend: numberAt(sound.reverbSend, `${path}.sound.reverbSend`, 0, 1),
+      reverbTimeSec: numberAt(
+        sound.reverbTimeSec,
+        `${path}.sound.reverbTimeSec`,
         0.05,
         20,
       ),
-      reverbWet: numberAt(sound.reverbWet, `${path}.sound.reverbWet`, 0, 1),
+      predelayMs: numberAt(sound.predelayMs, `${path}.sound.predelayMs`, 0, 250),
+      stereoWidth: numberAt(sound.stereoWidth, `${path}.sound.stereoWidth`, 0, 1),
       pan: numberAt(sound.pan, `${path}.sound.pan`, -1, 1),
-      variation: {
-        pitchCents: numberAt(
-          variation.pitchCents,
-          `${path}.sound.variation.pitchCents`,
-          0,
-          100,
-        ),
-        amplitude: numberAt(
-          variation.amplitude,
-          `${path}.sound.variation.amplitude`,
-          0,
-          0.75,
-        ),
-        decay: numberAt(
-          variation.decay,
-          `${path}.sound.variation.decay`,
-          0,
-          0.5,
-        ),
-        resonatorBanks: integerAt(
-          variation.resonatorBanks,
-          `${path}.sound.variation.resonatorBanks`,
-          1,
-          12,
-        ),
-      },
+      pitchJitterCents: numberAt(
+        sound.pitchJitterCents,
+        `${path}.sound.pitchJitterCents`,
+        0,
+        100,
+      ),
+      gainJitter: numberAt(sound.gainJitter, `${path}.sound.gainJitter`, 0, 0.75),
+      decayJitter: numberAt(
+        sound.decayJitter,
+        `${path}.sound.decayJitter`,
+        0,
+        0.5,
+      ),
+      masterGain: numberAt(sound.masterGain, `${path}.sound.masterGain`, 0, 5),
+      maxVoices: integerAt(sound.maxVoices, `${path}.sound.maxVoices`, 1, 16),
       partials: sound.partials.map((partial, partialIndex) =>
         validatePartial(partial, `${path}.sound.partials[${partialIndex}]`),
       ),
@@ -184,6 +214,7 @@ function validateEvent(value: unknown, index: number): VisualisationEvent {
 
 function validateConfig(value: unknown): VisualisationConfig {
   const config = objectAt(value, "config");
+  const globalVariation = objectAt(config.globalVariation, "config.globalVariation");
   if (!Array.isArray(config.events) || config.events.length === 0) {
     throw new Error("config.events must contain at least one event");
   }
@@ -196,6 +227,14 @@ function validateConfig(value: unknown): VisualisationConfig {
   return {
     backgroundColor: colourAt(config.backgroundColor, "config.backgroundColor"),
     masterVolume: numberAt(config.masterVolume, "config.masterVolume", 0, 1.5),
+    globalVariation: {
+      startTimeJitterMs: numberAt(
+        globalVariation.startTimeJitterMs,
+        "config.globalVariation.startTimeJitterMs",
+        0,
+        100,
+      ),
+    },
     events,
   };
 }

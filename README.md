@@ -2,17 +2,17 @@
 
 The Bell turns estimated worldwide rates of violence against women into a field
 of independently timed ripples and synthesised bells. The browser renders the
-ripples in a single instanced WebGL draw and synthesises sound with persistent
-resonators, so even event streams with hundreds of occurrences per second do
-not create hundreds of canvas or Web Audio objects.
+ripples in a single instanced WebGL draw and synthesises sound with a bounded
+pool of persistent resonators, so even event streams with hundreds of
+occurrences per second do not create hundreds of canvas or Web Audio objects.
 
 The deployed project also contains an About page with source attribution,
 methodological caveats, privacy information, and links to relevant charities.
 Each legend row has an independent switch that immediately removes that event's
 ripples, cancels queued strikes, and mutes both its dry bell and reverb tail.
-The two murder streams are intentionally voiced as opposites: a bright,
-alarming temple-gong strike for stranger murders and a sustained low funeral
-bourdon for partner murders.
+The two murder streams are intentionally voiced as opposites: a ringing Tragic
+tower bell for stranger murders and an old, rough Black iron bourdon for
+partner murders.
 
 ## Run locally
 
@@ -49,6 +49,7 @@ Global fields:
 | --- | --- |
 | `backgroundColor` | Six-digit canvas and page background colour. |
 | `masterVolume` | Final audio gain. `0` is silent; the current value is `0.82`. |
+| `globalVariation.startTimeJitterMs` | Maximum random audio offset around the visual strike time. |
 | `events` | Independent event streams. Add or remove objects here without changing TypeScript. |
 
 Per-event fields:
@@ -63,24 +64,33 @@ Per-event fields:
 | `ripple.shape` | One of the three built-in geometries: `normal`, `partial`, or `wavy`. |
 | `ripple.maxSize` | Maximum radius in CSS pixels. Individual marks vary between 90% and 100% of it. |
 | `ripple.fadeSeconds` | Complete visual lifetime, including fade-out. |
-| `sound.bellName` | Human-readable timbre name in the legend. |
-| `sound.volume` | Gain for this event before the master limiter. |
-| `sound.reverbSeconds` | Length of the generated convolution tail. |
-| `sound.reverbWet` | Reverb return level from `0` (dry) to `1`. |
+| `sound.voiceLabel` | Human-readable voice name in the legend. |
+| `sound.primeHz` | Reference prime frequency used to describe the voice. |
+| `sound.notePoolHz` | Possible prime frequencies selected independently for each strike. |
+| `sound.attackMs` | Time over which a strike excites its resonators. |
+| `sound.strikeNoise` | Strength of the short broadband impact transient. |
+| `sound.strikeNoiseDecayMs` | Lifetime of the impact transient. |
+| `sound.lowpassHz` / `highpassHz` | Per-voice tonal bandwidth. |
+| `sound.reverbSend` | Reverb return level from `0` (dry) to `1`. |
+| `sound.reverbTimeSec` | Length of the generated convolution tail. |
+| `sound.predelayMs` | Delay before the reverb tail begins. |
 | `sound.pan` | Stereo position from `-1` (left) to `1` (right). |
-| `sound.variation.pitchCents` | Maximum detuning across the resonator banks. Small values retain the bell's identity while reducing a fixed-pitch drone. |
-| `sound.variation.amplitude` | Per-strike loudness variation as a fraction. `0.15` means ±15%. |
-| `sound.variation.decay` | Decay-time variation across resonator banks as a fraction. |
-| `sound.variation.resonatorBanks` | Number of slightly different versions of the bell available to each strike. More banks smear dense streams at a modest CPU cost. |
-| `sound.partials` | Resonant frequencies that make up the bell. |
+| `sound.stereoWidth` | Maximum per-strike spread around the base pan. |
+| `sound.pitchJitterCents` | Small per-strike pitch drift in cents. |
+| `sound.gainJitter` / `decayJitter` | Per-strike loudness and decay variation as fractions. |
+| `sound.masterGain` | Gain for this event before the master limiter. |
+| `sound.maxVoices` | Hard polyphony limit. Oldest voice slots are reused under dense load. |
+| `sound.partials` | Named resonant modes that define the bell morphology. |
 
 Each sound partial exposes:
 
 | Field | Meaning |
 | --- | --- |
-| `pitchHz` | Frequency of the resonator in hertz. Raising all pitches makes the bell higher. Non-integer ratios sound more bell-like than neat musical harmonics. |
-| `amplitude` | Strength of that partial. Keep high-frequency partials quieter unless brutality is the point. |
-| `decaySeconds` | Dry resonator decay before reverb. |
+| `name` | Descriptive mode name such as `hum`, `prime`, or `tierce`. |
+| `ratio` | Frequency relative to the selected note-pool prime. |
+| `gain` | Strength of the mode before event and master gain. |
+| `decaySec` | Dry resonator decay before reverb. |
+| `detuneCents` | Fixed micro-detuning for the mode. |
 
 ### Add an event
 
@@ -104,20 +114,27 @@ Minimal example:
     "fadeSeconds": 3
   },
   "sound": {
-    "bellName": "Small bronze bell",
-    "volume": 0.8,
-    "reverbSeconds": 2.5,
-    "reverbWet": 0.25,
+    "voiceLabel": "Small bronze bell",
+    "primeHz": 440,
+    "notePoolHz": [415.3, 440, 466.16],
+    "attackMs": 8,
+    "strikeNoise": 0.08,
+    "strikeNoiseDecayMs": 35,
+    "lowpassHz": 6000,
+    "highpassHz": 80,
+    "reverbSend": 0.25,
+    "reverbTimeSec": 2.5,
+    "predelayMs": 12,
+    "stereoWidth": 0.3,
     "pan": 0,
-    "variation": {
-      "pitchCents": 14,
-      "amplitude": 0.12,
-      "decay": 0.08,
-      "resonatorBanks": 5
-    },
+    "pitchJitterCents": 5,
+    "gainJitter": 0.1,
+    "decayJitter": 0.08,
+    "masterGain": 0.8,
+    "maxVoices": 4,
     "partials": [
-      { "pitchHz": 640, "amplitude": 0.01, "decaySeconds": 2.2 },
-      { "pitchHz": 1037, "amplitude": 0.004, "decaySeconds": 1.8 }
+      { "name": "prime", "ratio": 1, "gain": 0.7, "decaySec": 2.2, "detuneCents": 0 },
+      { "name": "upper", "ratio": 2.71, "gain": 0.2, "decaySec": 1.3, "detuneCents": 3 }
     ]
   }
 }

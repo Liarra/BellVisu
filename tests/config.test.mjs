@@ -8,6 +8,7 @@ const config = JSON.parse(await readFile(configUrl, "utf8"));
 test("visualisation config contains independently configurable events", () => {
   assert.match(config.backgroundColor, /^#[0-9a-f]{6}$/i);
   assert.ok(config.masterVolume >= 0);
+  assert.ok(config.globalVariation.startTimeJitterMs >= 0);
   assert.ok(config.events.length > 0);
 
   const ids = new Set();
@@ -21,10 +22,16 @@ test("visualisation config contains independently configurable events", () => {
     assert.match(event.ripple.color, /^#[0-9a-f]{6}$/i);
     assert.ok(event.ripple.maxSize > 0);
     assert.ok(event.ripple.fadeSeconds > 0);
-    assert.ok(event.sound.variation.resonatorBanks >= 1);
-    assert.ok(event.sound.variation.pitchCents >= 0);
-    assert.ok(event.sound.variation.amplitude >= 0);
-    assert.ok(event.sound.variation.decay >= 0);
+    assert.ok(event.sound.notePoolHz.length > 0);
+    assert.ok(event.sound.maxVoices >= 1);
+    assert.ok(event.sound.pitchJitterCents >= 0);
+    assert.ok(event.sound.gainJitter >= 0);
+    assert.ok(event.sound.decayJitter >= 0);
     assert.ok(event.sound.partials.length > 0);
+    for (const partial of event.sound.partials) {
+      assert.ok(partial.ratio > 0);
+      assert.ok(partial.gain > 0);
+      assert.ok(partial.decaySec > 0);
+    }
   }
 });

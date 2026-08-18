@@ -1,3 +1,5 @@
+const BELL_OUTPUT_SCALE = 0.055;
+
 class BellFieldProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
@@ -6,39 +8,36 @@ class BellFieldProcessor extends AudioWorkletProcessor {
 
     const signatures = options.processorOptions?.signatures;
     if (Array.isArray(signatures)) {
-      for (const signature of signatures) {
-        if (!signature?.id || !Array.isArray(signature.partials)) continue;
-        const variation = signature.variation || {};
-        const bankCount = Math.max(
-          1,
-          Math.min(12, Math.round(Number(variation.resonatorBanks) || 1)),
-        );
-        const pitchCents = Math.max(0, Number(variation.pitchCents) || 0);
-        const decayVariation = Math.max(0, Number(variation.decay) || 0);
-        this.signatures[signature.id] = {
-          pan: Math.max(-1, Math.min(1, Number(signature.pan) || 0)),
-          amplitudeVariation: Math.max(0, Number(variation.amplitude) || 0),
-          banks: Array.from({ length: bankCount }, (_, bankIndex) => {
-            const position =
-              bankCount === 1 ? 0 : (bankIndex / (bankCount - 1)) * 2 - 1;
-            const pitchMultiplier = 2 ** ((position * pitchCents) / 1200);
-            const decayMultiplier =
-              1 + Math.sin((bankIndex + 1) * 2.39996) * decayVariation;
-            return signature.partials.map((partial) => {
-              const pitchHz = Number(partial.pitchHz) * pitchMultiplier;
-              const amplitude = Number(partial.amplitude);
-              const decaySeconds = Number(partial.decaySeconds) * decayMultiplier;
-              const angle = (Math.PI * 2 * pitchHz) / sampleRate;
-              return {
-                x: 0,
-                y: 0,
-                cosine: Math.cos(angle),
-                sine: Math.sin(angle),
-                damping: Math.exp(Math.log(0.001) / (decaySeconds * sampleRate)),
-                level: amplitude,
-              };
-            });
-          }),
+      for (const definition of signatures) {
+        const sound = definition?.sound;
+        if (!definition?.id || !sound || !Array.isArray(sound.partials)) continue;
+
+        const maxVoices = Math.max(1, Math.min(16, Math.round(sound.maxVoices || 1)));
+        this.signatures[definition.id] = {
+          sound,
+          voiceCursor: 0,
+          attackSamples: Math.max(
+            1,
+            Math.round(((Number(sound.attackMs) || 0) / 1000) * sampleRate),
+          ),
+          noiseDamping: Math.exp(
+            Math.log(0.001) /
+              (Math.max(0.001, (Number(sound.strikeNoiseDecayMs) || 1) / 1000) *
+                sampleRate),
+          ),
+          voices: Array.from({ length: maxVoices }, () => ({
+            leftGain: Math.sqrt((1 - sound.pan) * 0.5),
+            rightGain: Math.sqrt((1 + sound.pan) * 0.5),
+            noiseEnvelope: 0,
+            attackRemaining: 0,
+            partials: sound.partials.map(() => ({
+              x: 0,
+              y: 0,
+              cosine: 1,
+              sine: 0,
+              damping: 0,
+            })),
+          })),
         };
       }
     }
@@ -47,8 +46,10 @@ class BellFieldProcessor extends AudioWorkletProcessor {
       if (message.data?.cancel) {
         this.triggers.length = 0;
         for (const signature of Object.values(this.signatures)) {
-          for (const bank of signature.banks) {
-            for (const partial of bank) {
+          for (const voice of signature.voices) {
+            voice.noiseEnvelope = 0;
+            voice.attackRemaining = 0;
+            for (const partial of voice.partials) {
               partial.x = 0;
               partial.y = 0;
             }
@@ -56,12 +57,15 @@ class BellFieldProcessor extends AudioWorkletProcessor {
         }
         return;
       }
+
       const events = message.data?.events;
       if (!Array.isArray(events)) return;
       for (const event of events) {
         if (!this.signatures[event.eventId]) continue;
         this.triggers.push({
-          frame: currentFrame + Math.max(0, Math.round((event.delay || 0) * sampleRate)),
+          frame:
+            currentFrame +
+            Math.max(0, Math.round((Number(event.delay) || 0) * sampleRate)),
           eventId: event.eventId,
         });
       }
@@ -72,13 +76,43 @@ class BellFieldProcessor extends AudioWorkletProcessor {
   strike(eventId) {
     const signature = this.signatures[eventId];
     if (!signature) return;
-    const bank = signature.banks[Math.floor(Math.random() * signature.banks.length)];
-    const strikeLevel =
-      1 + (Math.random() * 2 - 1) * signature.amplitudeVariation;
-    for (const partial of bank) {
+
+    const { sound } = signature;
+    const voice = signature.voices[signature.voiceCursor % signature.voices.length];
+    signature.voiceCursor += 1;
+    const note = sound.notePoolHz[Math.floor(Math.random() * sound.notePoolHz.length)];
+    const pitchJitter = (Math.random() * 2 - 1) * sound.pitchJitterCents;
+    const gainMultiplier = 1 + (Math.random() * 2 - 1) * sound.gainJitter;
+    const decayMultiplier = 1 + (Math.random() * 2 - 1) * sound.decayJitter;
+    const pan = Math.max(
+      -1,
+      Math.min(1, sound.pan + (Math.random() * 2 - 1) * sound.stereoWidth * 0.5),
+    );
+    voice.leftGain = Math.sqrt((1 - pan) * 0.5);
+    voice.rightGain = Math.sqrt((1 + pan) * 0.5);
+    voice.noiseEnvelope = sound.strikeNoise * gainMultiplier * BELL_OUTPUT_SCALE;
+    voice.attackRemaining = signature.attackSamples;
+
+    for (let index = 0; index < voice.partials.length; index += 1) {
+      const partial = voice.partials[index];
+      const definition = sound.partials[index];
+      const pitchMultiplier =
+        2 ** ((definition.detuneCents + pitchJitter) / 1200);
+      const pitchHz = note * definition.ratio * pitchMultiplier;
+      const angle = (Math.PI * 2 * pitchHz) / sampleRate;
+      const level = definition.gain * gainMultiplier * BELL_OUTPUT_SCALE;
       const phase = Math.random() * Math.PI * 2;
-      partial.x += Math.cos(phase) * partial.level * strikeLevel;
-      partial.y += Math.sin(phase) * partial.level * strikeLevel;
+      const targetX = Math.cos(phase) * level;
+      const targetY = Math.sin(phase) * level;
+
+      partial.x = targetX;
+      partial.y = targetY;
+      partial.cosine = Math.cos(angle);
+      partial.sine = Math.sin(angle);
+      partial.damping = Math.exp(
+        Math.log(0.001) /
+          (definition.decaySec * decayMultiplier * sampleRate),
+      );
     }
   }
 
@@ -100,10 +134,14 @@ class BellFieldProcessor extends AudioWorkletProcessor {
       let leftSample = 0;
       let rightSample = 0;
       for (const signature of Object.values(this.signatures)) {
-        const leftGain = Math.sqrt((1 - signature.pan) * 0.5);
-        const rightGain = Math.sqrt((1 + signature.pan) * 0.5);
-        for (const bank of signature.banks) {
-          for (const partial of bank) {
+        for (const voice of signature.voices) {
+          const attackGain =
+            voice.attackRemaining > 0
+              ? 1 - voice.attackRemaining / signature.attackSamples
+              : 1;
+          if (voice.attackRemaining > 0) voice.attackRemaining -= 1;
+          let resonantSample = 0;
+          for (const partial of voice.partials) {
             const nextX =
               (partial.x * partial.cosine - partial.y * partial.sine) *
               partial.damping;
@@ -112,9 +150,14 @@ class BellFieldProcessor extends AudioWorkletProcessor {
               partial.damping;
             partial.x = nextX;
             partial.y = nextY;
-            leftSample += nextX * leftGain;
-            rightSample += nextX * rightGain;
+            resonantSample += nextX;
           }
+          const voiceSample =
+            resonantSample * attackGain +
+            (Math.random() * 2 - 1) * voice.noiseEnvelope;
+          voice.noiseEnvelope *= signature.noiseDamping;
+          leftSample += voiceSample * voice.leftGain;
+          rightSample += voiceSample * voice.rightGain;
         }
       }
 
