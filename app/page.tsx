@@ -247,25 +247,39 @@ function makeFallbackBellOutput(
   const queue: number[] = [];
   const leftGain = Math.sqrt((1 - stream.sound.pan) * 0.5);
   const rightGain = Math.sqrt((1 + stream.sound.pan) * 0.5);
-  const partials = stream.sound.partials.map((partial) => {
-    const angle = (Math.PI * 2 * partial.pitchHz) / context.sampleRate;
-    return {
-      x: 0,
-      y: 0,
-      cosine: Math.cos(angle),
-      sine: Math.sin(angle),
-      damping: Math.exp(
-        Math.log(0.001) / (partial.decaySeconds * context.sampleRate),
-      ),
-      level: partial.amplitude,
-    };
+  const variation = stream.sound.variation;
+  const banks = Array.from({ length: variation.resonatorBanks }, (_, bankIndex) => {
+    const position =
+      variation.resonatorBanks === 1
+        ? 0
+        : (bankIndex / (variation.resonatorBanks - 1)) * 2 - 1;
+    const pitchMultiplier = 2 ** ((position * variation.pitchCents) / 1_200);
+    const decayMultiplier = 1 + Math.sin((bankIndex + 1) * 2.39996) * variation.decay;
+    return stream.sound.partials.map((partial) => {
+      const angle =
+        (Math.PI * 2 * partial.pitchHz * pitchMultiplier) / context.sampleRate;
+      return {
+        x: 0,
+        y: 0,
+        cosine: Math.cos(angle),
+        sine: Math.sin(angle),
+        damping: Math.exp(
+          Math.log(0.001) /
+            (partial.decaySeconds * decayMultiplier * context.sampleRate),
+        ),
+        level: partial.amplitude,
+      };
+    });
   });
 
   const strike = () => {
-    for (const partial of partials) {
+    const bank = banks[Math.floor(Math.random() * banks.length)];
+    const strikeLevel =
+      1 + (Math.random() * 2 - 1) * stream.sound.variation.amplitude;
+    for (const partial of bank) {
       const phase = Math.random() * Math.PI * 2;
-      partial.x += Math.cos(phase) * partial.level;
-      partial.y += Math.sin(phase) * partial.level;
+      partial.x += Math.cos(phase) * partial.level * strikeLevel;
+      partial.y += Math.sin(phase) * partial.level * strikeLevel;
     }
   };
 
@@ -282,14 +296,18 @@ function makeFallbackBellOutput(
       }
 
       let output = 0;
-      for (const partial of partials) {
-        const nextX =
-          (partial.x * partial.cosine - partial.y * partial.sine) * partial.damping;
-        const nextY =
-          (partial.x * partial.sine + partial.y * partial.cosine) * partial.damping;
-        partial.x = nextX;
-        partial.y = nextY;
-        output += nextX;
+      for (const bank of banks) {
+        for (const partial of bank) {
+          const nextX =
+            (partial.x * partial.cosine - partial.y * partial.sine) *
+            partial.damping;
+          const nextY =
+            (partial.x * partial.sine + partial.y * partial.cosine) *
+            partial.damping;
+          partial.x = nextX;
+          partial.y = nextY;
+          output += nextX;
+        }
       }
       left[sample] = output * leftGain;
       right[sample] = output * rightGain;
@@ -308,9 +326,11 @@ function makeFallbackBellOutput(
     },
     cancel() {
       queue.length = 0;
-      for (const partial of partials) {
-        partial.x = 0;
-        partial.y = 0;
+      for (const bank of banks) {
+        for (const partial of bank) {
+          partial.x = 0;
+          partial.y = 0;
+        }
       }
     },
   };
@@ -329,6 +349,7 @@ function makeWorkletBellOutput(
         {
           id: stream.id,
           pan: stream.sound.pan,
+          variation: stream.sound.variation,
           partials: stream.sound.partials,
         },
       ],

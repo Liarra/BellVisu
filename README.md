@@ -68,6 +68,10 @@ Per-event fields:
 | `sound.reverbSeconds` | Length of the generated convolution tail. |
 | `sound.reverbWet` | Reverb return level from `0` (dry) to `1`. |
 | `sound.pan` | Stereo position from `-1` (left) to `1` (right). |
+| `sound.variation.pitchCents` | Maximum detuning across the resonator banks. Small values retain the bell's identity while reducing a fixed-pitch drone. |
+| `sound.variation.amplitude` | Per-strike loudness variation as a fraction. `0.15` means ±15%. |
+| `sound.variation.decay` | Decay-time variation across resonator banks as a fraction. |
+| `sound.variation.resonatorBanks` | Number of slightly different versions of the bell available to each strike. More banks smear dense streams at a modest CPU cost. |
 | `sound.partials` | Resonant frequencies that make up the bell. |
 
 Each sound partial exposes:
@@ -105,6 +109,12 @@ Minimal example:
     "reverbSeconds": 2.5,
     "reverbWet": 0.25,
     "pan": 0,
+    "variation": {
+      "pitchCents": 14,
+      "amplitude": 0.12,
+      "decay": 0.08,
+      "resonatorBanks": 5
+    },
     "partials": [
       { "pitchHz": 640, "amplitude": 0.01, "decaySeconds": 2.2 },
       { "pitchHz": 1037, "amplitude": 0.004, "decaySeconds": 1.8 }

@@ -26,6 +26,12 @@ export type VisualisationEvent = {
     reverbSeconds: number;
     reverbWet: number;
     pan: number;
+    variation: {
+      pitchCents: number;
+      amplitude: number;
+      decay: number;
+      resonatorBanks: number;
+    };
     partials: BellPartial[];
   };
 };
@@ -69,6 +75,17 @@ function numberAt(
   return value;
 }
 
+function integerAt(
+  value: unknown,
+  path: string,
+  minimum: number,
+  maximum: number,
+) {
+  const number = numberAt(value, path, minimum, maximum);
+  if (!Number.isInteger(number)) throw new Error(`${path} must be an integer`);
+  return number;
+}
+
 function colourAt(value: unknown, path: string) {
   const colour = stringAt(value, path);
   if (!HEX_COLOUR.test(colour)) {
@@ -91,6 +108,7 @@ function validateEvent(value: unknown, index: number): VisualisationEvent {
   const event = objectAt(value, path);
   const ripple = objectAt(event.ripple, `${path}.ripple`);
   const sound = objectAt(event.sound, `${path}.sound`);
+  const variation = objectAt(sound.variation, `${path}.sound.variation`);
   const shape = stringAt(ripple.shape, `${path}.ripple.shape`) as RippleShape;
   if (!RIPPLE_SHAPES.has(shape)) {
     throw new Error(`${path}.ripple.shape must be normal, partial, or wavy`);
@@ -131,6 +149,32 @@ function validateEvent(value: unknown, index: number): VisualisationEvent {
       ),
       reverbWet: numberAt(sound.reverbWet, `${path}.sound.reverbWet`, 0, 1),
       pan: numberAt(sound.pan, `${path}.sound.pan`, -1, 1),
+      variation: {
+        pitchCents: numberAt(
+          variation.pitchCents,
+          `${path}.sound.variation.pitchCents`,
+          0,
+          100,
+        ),
+        amplitude: numberAt(
+          variation.amplitude,
+          `${path}.sound.variation.amplitude`,
+          0,
+          0.75,
+        ),
+        decay: numberAt(
+          variation.decay,
+          `${path}.sound.variation.decay`,
+          0,
+          0.5,
+        ),
+        resonatorBanks: integerAt(
+          variation.resonatorBanks,
+          `${path}.sound.variation.resonatorBanks`,
+          1,
+          12,
+        ),
+      },
       partials: sound.partials.map((partial, partialIndex) =>
         validatePartial(partial, `${path}.sound.partials[${partialIndex}]`),
       ),

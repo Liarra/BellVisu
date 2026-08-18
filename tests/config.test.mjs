@@ -21,6 +21,10 @@ test("visualisation config contains independently configurable events", () => {
     assert.match(event.ripple.color, /^#[0-9a-f]{6}$/i);
     assert.ok(event.ripple.maxSize > 0);
     assert.ok(event.ripple.fadeSeconds > 0);
+    assert.ok(event.sound.variation.resonatorBanks >= 1);
+    assert.ok(event.sound.variation.pitchCents >= 0);
+    assert.ok(event.sound.variation.amplitude >= 0);
+    assert.ok(event.sound.variation.decay >= 0);
     assert.ok(event.sound.partials.length > 0);
   }
 });
