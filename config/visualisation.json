@@ -1,0 +1,126 @@
+{
+  "$schema": "./visualisation.schema.json",
+  "backgroundColor": "#100000",
+  "masterVolume": 0.82,
+  "events": [
+    {
+      "id": "murder-stranger",
+      "name": "Murders stranger",
+      "frequencyPerMinute": 6.0,
+      "jitter": 0.45,
+      "ripple": {
+        "color": "#AD1313",
+        "shape": "normal",
+        "maxSize": 124,
+        "fadeSeconds": 3.6
+      },
+      "sound": {
+        "bellName": "Great temple bell",
+        "volume": 1.15,
+        "reverbSeconds": 6.8,
+        "reverbWet": 0.28,
+        "pan": -0.34,
+        "partials": [
+          { "pitchHz": 72, "amplitude": 0.066, "decaySeconds": 3.5 },
+          { "pitchHz": 306, "amplitude": 0.036, "decaySeconds": 3.1 },
+          { "pitchHz": 584, "amplitude": 0.021, "decaySeconds": 2.7 }
+        ]
+      }
+    },
+    {
+      "id": "murder-partner",
+      "name": "Murders partner",
+      "frequencyPerMinute": 3.4,
+      "jitter": 0.45,
+      "ripple": {
+        "color": "#AD134E",
+        "shape": "normal",
+        "maxSize": 124,
+        "fadeSeconds": 3.6
+      },
+      "sound": {
+        "bellName": "Muffled bourdon",
+        "volume": 1.15,
+        "reverbSeconds": 6.8,
+        "reverbWet": 0.28,
+        "pan": 0.34,
+        "partials": [
+          { "pitchHz": 126, "amplitude": 0.072, "decaySeconds": 3.5 },
+          { "pitchHz": 205, "amplitude": 0.024, "decaySeconds": 3.1 },
+          { "pitchHz": 318, "amplitude": 0.009, "decaySeconds": 2.6 }
+        ]
+      }
+    },
+    {
+      "id": "rape-15-plus",
+      "name": "Rapes, 15+",
+      "frequencyPerMinute": 12000,
+      "jitter": 0.35,
+      "ripple": {
+        "color": "#A00000",
+        "shape": "partial",
+        "maxSize": 124,
+        "fadeSeconds": 3.6
+      },
+      "sound": {
+        "bellName": "Muted handbell",
+        "volume": 1.0,
+        "reverbSeconds": 3.4,
+        "reverbWet": 0.28,
+        "pan": -0.1,
+        "partials": [
+          { "pitchHz": 390, "amplitude": 0.00155, "decaySeconds": 3.4 },
+          { "pitchHz": 618, "amplitude": 0.00056, "decaySeconds": 2.9 }
+        ]
+      }
+    },
+    {
+      "id": "rape-pre-15",
+      "name": "Rapes, pre-15",
+      "frequencyPerMinute": 4500,
+      "jitter": 0.35,
+      "ripple": {
+        "color": "#A00000",
+        "shape": "partial",
+        "maxSize": 124,
+        "fadeSeconds": 3.6
+      },
+      "sound": {
+        "bellName": "Carillon bell",
+        "volume": 1.0,
+        "reverbSeconds": 3.4,
+        "reverbWet": 0.28,
+        "pan": 0.12,
+        "partials": [
+          { "pitchHz": 755, "amplitude": 0.0031, "decaySeconds": 3.4 },
+          { "pitchHz": 1518, "amplitude": 0.00175, "decaySeconds": 3.0 },
+          { "pitchHz": 2460, "amplitude": 0.00068, "decaySeconds": 2.5 }
+        ]
+      }
+    },
+    {
+      "id": "fgm",
+      "name": "FGM",
+      "frequencyPerMinute": 510,
+      "jitter": 0.4,
+      "ripple": {
+        "color": "#FF2C61",
+        "shape": "wavy",
+        "maxSize": 72,
+        "fadeSeconds": 3.6
+      },
+      "sound": {
+        "bellName": "Sanctus bell",
+        "volume": 1.1,
+        "reverbSeconds": 1.5,
+        "reverbWet": 0.28,
+        "pan": 0,
+        "partials": [
+          { "pitchHz": 1760, "amplitude": 0.013, "decaySeconds": 1.65 },
+          { "pitchHz": 3523, "amplitude": 0.0065, "decaySeconds": 1.3 },
+          { "pitchHz": 5820, "amplitude": 0.0028, "decaySeconds": 0.9 }
+        ]
+      }
+    }
+  ]
+}
