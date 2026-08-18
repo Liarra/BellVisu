@@ -29,6 +29,16 @@ class BellFieldProcessor extends AudioWorkletProcessor {
     }
 
     this.port.onmessage = (message) => {
+      if (message.data?.cancel) {
+        this.triggers.length = 0;
+        for (const signature of Object.values(this.signatures)) {
+          for (const partial of signature.partials) {
+            partial.x = 0;
+            partial.y = 0;
+          }
+        }
+        return;
+      }
       const events = message.data?.events;
       if (!Array.isArray(events)) return;
       for (const event of events) {

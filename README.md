@@ -8,6 +8,8 @@ not create hundreds of canvas or Web Audio objects.
 
 The deployed project also contains an About page with source attribution,
 methodological caveats, privacy information, and links to relevant charities.
+Each legend row has an independent switch that immediately removes that event's
+ripples, cancels queued strikes, and mutes both its dry bell and reverb tail.
 
 ## Run locally
 

@@ -109,7 +109,6 @@ body {
     0 16px 48px rgba(10, 0, 0, 0.28),
     inset 0 1px 0 rgba(255, 128, 128, 0.04);
   color: rgba(255, 190, 190, 0.9);
-  pointer-events: none;
   backdrop-filter: blur(12px) saturate(115%);
 }
 
@@ -179,7 +178,7 @@ body {
 
 .event-legend__item {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-columns: 26px 48px minmax(0, 1fr) auto;
   align-items: center;
   min-height: 52px;
   padding: 3px 4px;
@@ -190,6 +189,51 @@ body {
   background: rgba(255, 36, 36, 0.025);
 }
 
+.event-switch {
+  position: relative;
+  width: 22px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid rgba(255, 129, 129, 0.35);
+  border-radius: 999px;
+  background: rgba(80, 16, 16, 0.72);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.event-switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 172, 172, 0.7);
+  transition: transform 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.event-switch--on {
+  border-color: rgba(255, 93, 93, 0.72);
+  background: rgba(154, 20, 20, 0.78);
+}
+
+.event-switch--on span {
+  background: #ff6868;
+  box-shadow: 0 0 6px rgba(255, 60, 60, 0.8);
+  transform: translateX(10px);
+}
+
+.event-switch:focus-visible {
+  outline: 1px solid rgba(255, 185, 185, 0.94);
+  outline-offset: 3px;
+}
+
+.event-legend__item--disabled .legend-ripple,
+.event-legend__item--disabled .event-legend__identity,
+.event-legend__item--disabled .event-legend__rate {
+  opacity: 0.32;
+}
+
 .legend-ripple {
   display: block;
   width: 42px;
@@ -197,10 +241,11 @@ body {
   overflow: visible;
   fill: none;
   stroke: #ff181e;
-  stroke-width: 1.7;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 3px rgba(255, 25, 34, 0.42));
+  filter: drop-shadow(0 0 5px rgba(255, 25, 34, 0.72));
+  transition: opacity 140ms ease;
 }
 
 .legend-ripple--partial {
@@ -481,7 +526,7 @@ body {
   }
 
   .event-legend__item {
-    grid-template-columns: 42px minmax(0, 1fr) auto;
+    grid-template-columns: 26px 42px minmax(0, 1fr) auto;
     min-height: 47px;
   }
 

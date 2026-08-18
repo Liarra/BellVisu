@@ -40,6 +40,7 @@ type AudioEngine = {
   context: AudioContext;
   master: GainNode;
   schedule: (events: ScheduledBell[]) => void;
+  setEnabled: (eventId: string, enabled: boolean) => void;
 };
 
 type RippleRenderer = {
@@ -52,6 +53,7 @@ type BellVoice = {
   eventId: string;
   node: AudioNode;
   schedule: (events: ScheduledBell[]) => void;
+  cancel: () => void;
 };
 
 const FRAME_INTERVAL = 1_000 / 30;
@@ -108,14 +110,14 @@ const WAVY_GLYPH_PATHS = [
 ];
 
 function RippleGlyph({ shape, colour }: { shape: RippleShape; colour: string }) {
-  const ringOpacities = [1, 0.58, 0.28];
+  const ringOpacities = [1, 0.84, 0.64];
 
   return (
     <svg
       className={`legend-ripple legend-ripple--${shape}`}
       style={{
         stroke: colour,
-        filter: `drop-shadow(0 0 4px ${colour}99)`,
+        filter: `drop-shadow(0 0 6px ${colour}cc)`,
       }}
       viewBox="0 0 64 64"
       role="img"
@@ -135,7 +137,7 @@ function RippleGlyph({ shape, colour }: { shape: RippleShape; colour: string }) 
             pathLength="100"
             strokeDasharray="33.333 16.667"
             transform="rotate(-60 32 32)"
-            opacity="0.58"
+            opacity={ringOpacities[1]}
           />
           <circle
             cx="32"
@@ -144,7 +146,7 @@ function RippleGlyph({ shape, colour }: { shape: RippleShape; colour: string }) 
             pathLength="100"
             strokeDasharray="33.333 16.667"
             transform="rotate(-150 32 32)"
-            opacity="0.28"
+            opacity={ringOpacities[2]}
           />
         </>
       )}
@@ -304,6 +306,13 @@ function makeFallbackBellOutput(
       for (const event of events) queue.push(now + event.delay);
       queue.sort((first, second) => first - second);
     },
+    cancel() {
+      queue.length = 0;
+      for (const partial of partials) {
+        partial.x = 0;
+        partial.y = 0;
+      }
+    },
   };
 }
 
@@ -332,6 +341,9 @@ function makeWorkletBellOutput(
     schedule(events) {
       bell.port.postMessage({ events });
     },
+    cancel() {
+      bell.port.postMessage({ cancel: true });
+    },
   };
 }
 
@@ -358,7 +370,10 @@ async function buildAudioEngine(context: AudioContext): Promise<AudioEngine> {
     }
   }
 
-  const voices = new Map<string, BellVoice>();
+  const voices = new Map<
+    string,
+    { voice: BellVoice; eventOutput: GainNode; enabled: boolean }
+  >();
   for (const stream of visualisationConfig.events) {
     let voice: BellVoice;
     if (workletReady) {
@@ -374,16 +389,19 @@ async function buildAudioEngine(context: AudioContext): Promise<AudioEngine> {
     const voiceLevel = context.createGain();
     const reverb = context.createConvolver();
     const reverbLevel = context.createGain();
+    const eventOutput = context.createGain();
     voiceLevel.gain.value = stream.sound.volume;
     reverb.buffer = makeReverbImpulse(context, stream.sound.reverbSeconds);
     reverbLevel.gain.value = stream.sound.reverbWet;
+    eventOutput.gain.value = 1;
 
     voice.node.connect(voiceLevel);
-    voiceLevel.connect(master);
+    voiceLevel.connect(eventOutput);
     voiceLevel.connect(reverb);
     reverb.connect(reverbLevel);
-    reverbLevel.connect(master);
-    voices.set(stream.id, voice);
+    reverbLevel.connect(eventOutput);
+    eventOutput.connect(master);
+    voices.set(stream.id, { voice, eventOutput, enabled: true });
   }
 
   return {
@@ -396,7 +414,19 @@ async function buildAudioEngine(context: AudioContext): Promise<AudioEngine> {
         batch.push(event);
         batches.set(event.eventId, batch);
       }
-      for (const [eventId, batch] of batches) voices.get(eventId)?.schedule(batch);
+      for (const [eventId, batch] of batches) {
+        const output = voices.get(eventId);
+        if (output?.enabled) output.voice.schedule(batch);
+      }
+    },
+    setEnabled(eventId, enabled) {
+      const output = voices.get(eventId);
+      if (!output || output.enabled === enabled) return;
+      output.enabled = enabled;
+      const now = context.currentTime;
+      output.eventOutput.gain.cancelScheduledValues(now);
+      output.eventOutput.gain.setTargetAtTime(enabled ? 1 : 0, now, 0.006);
+      if (!enabled) output.voice.cancel();
     },
   };
 }
@@ -728,6 +758,22 @@ export default function Home() {
   const audioInitRef = useRef<Promise<AudioEngine> | null>(null);
   const soundEnabledRef = useRef(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const enabledEventIdsRef = useRef(
+    new Set(visualisationConfig.events.map((stream) => stream.id)),
+  );
+  const [enabledEventIds, setEnabledEventIds] = useState(
+    () => new Set(visualisationConfig.events.map((stream) => stream.id)),
+  );
+
+  const toggleEvent = (eventId: string) => {
+    const next = new Set(enabledEventIdsRef.current);
+    const enabled = !next.has(eventId);
+    if (enabled) next.add(eventId);
+    else next.delete(eventId);
+    enabledEventIdsRef.current = next;
+    setEnabledEventIds(next);
+    audioEngineRef.current?.setEnabled(eventId, enabled);
+  };
 
   const toggleSound = () => {
     const nextState = !soundEnabledRef.current;
@@ -755,6 +801,9 @@ export default function Home() {
     void audioInitRef.current
       .then((engine) => {
         audioEngineRef.current = engine;
+        for (const stream of visualisationConfig.events) {
+          engine.setEnabled(stream.id, enabledEventIdsRef.current.has(stream.id));
+        }
         if (soundEnabledRef.current) {
           engine.master.gain.setTargetAtTime(
             visualisationConfig.masterVolume,
@@ -806,17 +855,15 @@ export default function Home() {
     const activeRenderer = renderer;
     const ripples: Ripple[] = [];
     const pendingEvents: ScheduledEvent[] = [];
-    const start = performance.now();
     const streams = visualisationConfig.events.map((stream) => ({
       stream,
-      nextAt:
-        start + nextEventDelay(stream.frequencyPerMinute, stream.jitter),
+      nextAt: 0,
     }));
     let width = 0;
     let height = 0;
     let animationFrame = 0;
     let lastFrameAt = 0;
-    let previousFrameAt = start;
+    let previousFrameAt = 0;
 
     const resize = () => {
       width = window.innerWidth;
@@ -855,7 +902,18 @@ export default function Home() {
 
     const scheduleEvents = (now: number) => {
       const horizon = now + SCHEDULE_AHEAD;
+      for (let index = pendingEvents.length - 1; index >= 0; index -= 1) {
+        if (!enabledEventIdsRef.current.has(pendingEvents[index].stream.id)) {
+          pendingEvents.splice(index, 1);
+        }
+      }
       for (const state of streams) {
+        if (!enabledEventIdsRef.current.has(state.stream.id)) {
+          state.nextAt =
+            horizon +
+            nextEventDelay(state.stream.frequencyPerMinute, state.stream.jitter);
+          continue;
+        }
         while (state.nextAt <= horizon) {
           pendingEvents.push({
             at: state.nextAt,
@@ -874,7 +932,10 @@ export default function Home() {
       if (soundEnabledRef.current && audioEngine) {
         const audioBatch: ScheduledBell[] = [];
         for (const event of pendingEvents) {
-          if (!event.audioSent) {
+          if (
+            !event.audioSent &&
+            enabledEventIdsRef.current.has(event.stream.id)
+          ) {
             audioBatch.push({
               eventId: event.stream.id,
               delay: Math.max(0, (event.at - now) / 1_000),
@@ -887,7 +948,9 @@ export default function Home() {
 
       let dueCount = 0;
       while (dueCount < pendingEvents.length && pendingEvents[dueCount].at <= now) {
-        spawnRipple(pendingEvents[dueCount]);
+        if (enabledEventIdsRef.current.has(pendingEvents[dueCount].stream.id)) {
+          spawnRipple(pendingEvents[dueCount]);
+        }
         dueCount += 1;
       }
       if (dueCount > 0) pendingEvents.splice(0, dueCount);
@@ -903,7 +966,10 @@ export default function Home() {
       scheduleEvents(now);
 
       for (let index = ripples.length - 1; index >= 0; index -= 1) {
-        if (now - ripples[index].bornAt >= ripples[index].lifetimeMs) {
+        if (
+          !enabledEventIdsRef.current.has(ripples[index].eventId) ||
+          now - ripples[index].bornAt >= ripples[index].lifetimeMs
+        ) {
           ripples.splice(index, 1);
         }
       }
@@ -947,22 +1013,38 @@ export default function Home() {
           <span>Events / minute</span>
         </header>
         <ul className="event-legend__list">
-          {visualisationConfig.events.map((stream) => (
-            <li className="event-legend__item" key={stream.id}>
-              <RippleGlyph
-                shape={stream.ripple.shape}
-                colour={stream.ripple.color}
-              />
-              <div className="event-legend__identity">
-                <strong>{stream.name}</strong>
-                <span>{stream.sound.bellName}</span>
-              </div>
-              <div className="event-legend__rate">
-                <strong>{formatEventRate(stream.frequencyPerMinute)}</strong>
-                <span>events/min</span>
-              </div>
-            </li>
-          ))}
+          {visualisationConfig.events.map((stream) => {
+            const enabled = enabledEventIds.has(stream.id);
+            return (
+              <li
+                className={`event-legend__item${enabled ? "" : " event-legend__item--disabled"}`}
+                key={stream.id}
+              >
+                <button
+                  type="button"
+                  className={`event-switch${enabled ? " event-switch--on" : ""}`}
+                  role="switch"
+                  aria-checked={enabled}
+                  aria-label={`${enabled ? "Disable" : "Enable"} ${stream.name}`}
+                  onClick={() => toggleEvent(stream.id)}
+                >
+                  <span aria-hidden="true" />
+                </button>
+                <RippleGlyph
+                  shape={stream.ripple.shape}
+                  colour={stream.ripple.color}
+                />
+                <div className="event-legend__identity">
+                  <strong>{stream.name}</strong>
+                  <span>{stream.sound.bellName}</span>
+                </div>
+                <div className="event-legend__rate">
+                  <strong>{formatEventRate(stream.frequencyPerMinute)}</strong>
+                  <span>events/min</span>
+                </div>
+              </li>
+            );
+          })}
         </ul>
         <footer className="event-legend__footer">
           <Link href="/about">About this visualisation</Link>
