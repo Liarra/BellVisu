@@ -47,31 +47,54 @@ body {
   right: 18px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 7px 12px;
-  border: 1px solid rgba(255, 72, 72, 0.2);
+  gap: 9px;
+  min-height: 40px;
+  padding: 9px 15px;
+  border: 1px solid rgba(255, 94, 110, 0.78);
   border-radius: 999px;
-  background: rgba(38, 0, 0, 0.76);
-  color: rgba(255, 154, 154, 0.66);
-  font: 500 11px/1 Arial, Helvetica, sans-serif;
+  background: rgba(92, 4, 20, 0.94);
+  box-shadow:
+    0 0 0 1px rgba(255, 50, 78, 0.14),
+    0 0 28px rgba(255, 24, 62, 0.34),
+    0 8px 24px rgba(12, 0, 0, 0.44);
+  color: rgba(255, 224, 229, 0.98);
+  font: 650 11px/1 Arial, Helvetica, sans-serif;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
-  opacity: 0.64;
+  opacity: 1;
   backdrop-filter: blur(8px);
   transition:
     opacity 160ms ease,
     color 160ms ease,
-    border-color 160ms ease;
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .sound-toggle:hover,
-.sound-toggle:focus-visible,
+.sound-toggle:focus-visible {
+  color: #fff;
+  border-color: rgba(255, 154, 164, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(255, 90, 110, 0.28),
+    0 0 34px rgba(255, 24, 62, 0.5),
+    0 8px 24px rgba(12, 0, 0, 0.44);
+}
+
 .sound-toggle--on {
+  opacity: 0.72;
+  border-color: rgba(255, 72, 72, 0.28);
+  background: rgba(38, 0, 0, 0.76);
+  box-shadow: none;
+  color: rgba(255, 178, 178, 0.78);
+}
+
+.sound-toggle--on:hover,
+.sound-toggle--on:focus-visible {
   opacity: 1;
-  color: rgba(255, 188, 188, 0.9);
-  border-color: rgba(255, 72, 72, 0.44);
+  border-color: rgba(255, 72, 72, 0.48);
+  color: rgba(255, 205, 205, 0.94);
 }
 
 .sound-toggle:focus-visible {
@@ -80,11 +103,11 @@ body {
 }
 
 .sound-toggle__light {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: rgba(255, 80, 80, 0.34);
-  box-shadow: 0 0 0 rgba(255, 42, 42, 0);
+  background: #ff355f;
+  box-shadow: 0 0 11px rgba(255, 42, 78, 0.84);
   transition:
     background 160ms ease,
     box-shadow 160ms ease;
