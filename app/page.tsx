@@ -29,11 +29,14 @@ type ScheduledEvent = {
   at: number;
   stream: VisualisationEvent;
   audioSent: boolean;
+  xRatio: number;
+  yRatio: number;
 };
 
 type ScheduledBell = {
   eventId: string;
   delay: number;
+  pan: number;
 };
 
 type AudioEngine = {
@@ -61,6 +64,14 @@ const SCHEDULE_AHEAD = 120;
 const TEXTURE_SIZE = 320;
 const BELL_OUTPUT_SCALE = 0.055;
 const SHAPE_ORDER: RippleShape[] = ["normal", "partial", "wavy"];
+
+function panForRipple(stream: VisualisationEvent, xRatio: number) {
+  const ripplePan = xRatio * 2 - 1;
+  const pan =
+    stream.sound.pan +
+    (ripplePan - stream.sound.pan) * stream.sound.spatialAmount;
+  return Math.max(-1, Math.min(1, pan));
+}
 
 function gaussian(value: number, center: number, width: number) {
   const distance = (value - center) / width;
@@ -245,7 +256,7 @@ function makeFallbackBellOutput(
   stream: VisualisationEvent,
 ): BellVoice {
   const processor = context.createScriptProcessor(2_048, 0, 2);
-  const queue: number[] = [];
+  const queue: Array<{ at: number; pan: number }> = [];
   const attackSamples = Math.max(
     1,
     Math.round((stream.sound.attackMs / 1_000) * context.sampleRate),
@@ -269,7 +280,7 @@ function makeFallbackBellOutput(
   }));
   let voiceCursor = 0;
 
-  const strike = () => {
+  const strike = (scheduledPan: number) => {
     const voice = voices[voiceCursor % voices.length];
     voiceCursor += 1;
     const note =
@@ -286,7 +297,7 @@ function makeFallbackBellOutput(
       -1,
       Math.min(
         1,
-        stream.sound.pan +
+        scheduledPan +
           (Math.random() * 2 - 1) * stream.sound.stereoWidth * 0.5,
       ),
     );
@@ -325,8 +336,8 @@ function makeFallbackBellOutput(
 
     for (let sample = 0; sample < left.length; sample += 1) {
       const sampleTime = event.playbackTime + sample / context.sampleRate;
-      while (consumed < queue.length && queue[consumed] <= sampleTime) {
-        strike();
+      while (consumed < queue.length && queue[consumed].at <= sampleTime) {
+        strike(queue[consumed].pan);
         consumed += 1;
       }
 
@@ -369,8 +380,10 @@ function makeFallbackBellOutput(
     node: processor as AudioNode,
     schedule(events) {
       const now = context.currentTime;
-      for (const event of events) queue.push(now + event.delay);
-      queue.sort((first, second) => first - second);
+      for (const event of events) {
+        queue.push({ at: now + event.delay, pan: event.pan });
+      }
+      queue.sort((first, second) => first.at - second.at);
     },
     cancel() {
       queue.length = 0;
@@ -975,8 +988,8 @@ export default function Home() {
 
     const spawnRipple = (event: ScheduledEvent) => {
       ripples.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
+        x: event.xRatio * width,
+        y: event.yRatio * height,
         bornAt: event.at,
         maxSize: event.stream.ripple.maxSize * (0.9 + Math.random() * 0.1),
         lifetimeMs: event.stream.ripple.fadeSeconds * 1_000,
@@ -1009,6 +1022,8 @@ export default function Home() {
             at: state.nextAt,
             stream: state.stream,
             audioSent: false,
+            xRatio: Math.random(),
+            yRatio: Math.random(),
           });
           state.nextAt += nextEventDelay(
             state.stream.frequencyPerMinute,
@@ -1029,6 +1044,7 @@ export default function Home() {
             audioBatch.push({
               eventId: event.stream.id,
               delay: Math.max(0, (event.at - now) / 1_000),
+              pan: panForRipple(event.stream, event.xRatio),
             });
             event.audioSent = true;
           }

@@ -34,6 +34,7 @@ export type VisualisationEvent = {
     reverbSend: number;
     reverbTimeSec: number;
     predelayMs: number;
+    spatialAmount: number;
     stereoWidth: number;
     pan: number;
     pitchJitterCents: number;
@@ -188,6 +189,12 @@ function validateEvent(value: unknown, index: number): VisualisationEvent {
         20,
       ),
       predelayMs: numberAt(sound.predelayMs, `${path}.sound.predelayMs`, 0, 250),
+      spatialAmount: numberAt(
+        sound.spatialAmount,
+        `${path}.sound.spatialAmount`,
+        0,
+        1,
+      ),
       stereoWidth: numberAt(sound.stereoWidth, `${path}.sound.stereoWidth`, 0, 1),
       pan: numberAt(sound.pan, `${path}.sound.pan`, -1, 1),
       pitchJitterCents: numberAt(

@@ -27,6 +27,9 @@ test("visualisation config contains independently configurable events", () => {
     assert.ok(event.sound.pitchJitterCents >= 0);
     assert.ok(event.sound.gainJitter >= 0);
     assert.ok(event.sound.decayJitter >= 0);
+    assert.ok(
+      event.sound.spatialAmount >= 0 && event.sound.spatialAmount <= 1,
+    );
     assert.ok(event.sound.partials.length > 0);
     for (const partial of event.sound.partials) {
       assert.ok(partial.ratio > 0);

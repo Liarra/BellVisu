@@ -10,6 +10,9 @@ The deployed project also contains an About page with source attribution,
 methodological caveats, privacy information, and links to relevant charities.
 Each legend row has an independent switch that immediately removes that event's
 ripples, cancels queued strikes, and mutes both its dry bell and reverb tail.
+Every statistical event receives one normalized screen position before audio is
+scheduled. Its bell is panned from that same horizontal coordinate, so the
+audible source and the visible ripple remain aligned even during dense bursts.
 The richer morphology schema now reproduces the earlier voice set: Alarm temple
 gong, Funeral bourdon, Muted handbell, Carillon bell and Sanctus bell. Their
 former absolute frequencies are expressed as a prime plus partial ratios, while
@@ -76,8 +79,9 @@ Per-event fields:
 | `sound.reverbSend` | Reverb return level from `0` (dry) to `1`. |
 | `sound.reverbTimeSec` | Length of the generated convolution tail. |
 | `sound.predelayMs` | Delay before the reverb tail begins. |
-| `sound.pan` | Stereo position from `-1` (left) to `1` (right). |
-| `sound.stereoWidth` | Maximum per-strike spread around the base pan. |
+| `sound.spatialAmount` | How strongly a ripple's horizontal position controls its stereo position. `0` uses only `pan`; `1` follows the ripple completely. |
+| `sound.pan` | Base stereo position from `-1` (left) to `1` (right), blended with the ripple according to `spatialAmount`. |
+| `sound.stereoWidth` | Maximum random per-strike spread around the resulting positional pan. |
 | `sound.pitchJitterCents` | Small per-strike pitch drift in cents. |
 | `sound.gainJitter` / `decayJitter` | Per-strike loudness and decay variation as fractions. |
 | `sound.masterGain` | Gain for this event before the master limiter. |
@@ -127,6 +131,7 @@ Minimal example:
     "reverbSend": 0.25,
     "reverbTimeSec": 2.5,
     "predelayMs": 12,
+    "spatialAmount": 0.85,
     "stereoWidth": 0.3,
     "pan": 0,
     "pitchJitterCents": 5,

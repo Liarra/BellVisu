@@ -67,13 +67,14 @@ class BellFieldProcessor extends AudioWorkletProcessor {
             currentFrame +
             Math.max(0, Math.round((Number(event.delay) || 0) * sampleRate)),
           eventId: event.eventId,
+          pan: Math.max(-1, Math.min(1, Number(event.pan) || 0)),
         });
       }
       this.triggers.sort((first, second) => first.frame - second.frame);
     };
   }
 
-  strike(eventId) {
+  strike(eventId, scheduledPan) {
     const signature = this.signatures[eventId];
     if (!signature) return;
 
@@ -86,7 +87,10 @@ class BellFieldProcessor extends AudioWorkletProcessor {
     const decayMultiplier = 1 + (Math.random() * 2 - 1) * sound.decayJitter;
     const pan = Math.max(
       -1,
-      Math.min(1, sound.pan + (Math.random() * 2 - 1) * sound.stereoWidth * 0.5),
+      Math.min(
+        1,
+        scheduledPan + (Math.random() * 2 - 1) * sound.stereoWidth * 0.5,
+      ),
     );
     voice.leftGain = Math.sqrt((1 - pan) * 0.5);
     voice.rightGain = Math.sqrt((1 + pan) * 0.5);
@@ -127,7 +131,10 @@ class BellFieldProcessor extends AudioWorkletProcessor {
         consumed < this.triggers.length &&
         this.triggers[consumed].frame <= frame
       ) {
-        this.strike(this.triggers[consumed].eventId);
+        this.strike(
+          this.triggers[consumed].eventId,
+          this.triggers[consumed].pan,
+        );
         consumed += 1;
       }
 
